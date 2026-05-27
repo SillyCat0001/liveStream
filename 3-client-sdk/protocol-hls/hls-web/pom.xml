@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>cn.livestream</groupId>
+        <artifactId>protocol-hls</artifactId>
+        <version>1.0.0</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>hls-web</artifactId>
+    <packaging>jar</packaging>
+
+    <name>HLS Web Player</name>
+    <description>Web HLS player implementation using hls.js</description>
+
+    <properties>
+        <frontend-maven-plugin.version>1.12.1</frontend-maven-plugin.version>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>io.github.nicolo-ribaudo</groupId>
+            <artifactId>hls.js</artifactId>
+            <version>1.5.1</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>com.github.eirslett</groupId>
+                <artifactId>frontend-maven-plugin</artifactId>
+                <version>${frontend-maven-plugin.version}</version>
+                <configuration>
+                    <nodeVersion>v18.17.0</nodeVersion>
+                    <npmVersion>9.6.7</npmVersion>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>

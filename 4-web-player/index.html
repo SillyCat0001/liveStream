@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>直播监控系统</title>
+    <link rel="stylesheet" href="css/player.css">
+    <!-- HLS.js -->
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.7/dist/hls.min.js"></script>
+    <!-- FLV.js -->
+    <script src="https://cdn.jsdelivr.net/npm/flv.js@1.6.2/dist/flv.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>直播监控系统</h1>
+            <div class="status">
+                <span id="connectionStatus">未连接</span>
+            </div>
+        </header>
+
+        <main>
+            <div class="video-container">
+                <video id="videoPlayer" controls playsinline></video>
+            </div>
+
+            <div class="controls">
+                <div class="control-group">
+                    <label>流地址:</label>
+                    <input type="text" id="streamUrl" placeholder="输入 HLS/HTTP-FLV 地址">
+                </div>
+                <div class="control-group">
+                    <label>协议:</label>
+                    <select id="protocolSelect">
+                        <option value="auto">自动选择</option>
+                        <option value="hls">HLS</option>
+                        <option value="httpflv">HTTP-FLV</option>
+                        <option value="webrtc">WebRTC</option>
+                    </select>
+                </div>
+                <div class="control-buttons">
+                    <button id="playBtn" class="btn primary">播放</button>
+                    <button id="stopBtn" class="btn" disabled>停止</button>
+                </div>
+            </div>
+
+            <div class="stats">
+                <h3>播放统计</h3>
+                <div id="statsContent">
+                    <p>码率: <span id="videoBitrate">-</span> kbps</p>
+                    <p>帧率: <span id="fps">-</span> fps</p>
+                    <p>延迟: <span id="latency">-</span> ms</p>
+                    <p>缓冲: <span id="buffer">-</span> ms</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="js/app.js"></script>
+</body>
+</html>

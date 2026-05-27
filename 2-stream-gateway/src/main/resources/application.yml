@@ -1,0 +1,12 @@
+server:
+  port: 8081
+
+aws:
+  ivs:
+    region: us-east-1
+    api-key: ${AWS_IVS_API_KEY:your-api-key}
+    arn: ${AWS_IVS_ARN:your-channel-arn}
+
+srs:
+  url: http://localhost:8082
+  api-key: ${SRS_API_KEY:secret}
