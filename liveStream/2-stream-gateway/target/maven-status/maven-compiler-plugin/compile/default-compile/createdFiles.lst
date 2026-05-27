@@ -1,0 +1,3 @@
+cn\livestream\gateway\model\ChannelInfo.class
+cn\livestream\gateway\model\ChannelState.class
+cn\livestream\gateway\service\StreamGateway.class

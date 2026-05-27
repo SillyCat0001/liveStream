@@ -1,0 +1,12 @@
+server:
+  port: 8080
+
+camera:
+  rtmp-url: rtmp://localhost/live
+  stream-key: test-stream
+  width: 1920
+  height: 1080
+  fps: 30
+  video-bitrate: 2000
+  audio-bitrate: 128
+  codec: h264
