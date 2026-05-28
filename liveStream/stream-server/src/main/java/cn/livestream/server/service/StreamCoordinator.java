@@ -32,6 +32,7 @@ public class StreamCoordinator {
         cmd.setType("START_STREAM");
         cmd.setRtmpUrl(rtmpUrl);
         cmd.setStreamKey(streamKey);
+        cmd.setConfig(new StartStreamCommand.StreamConfig());
 
         String message = objectMapper.writeValueAsString(cmd);
         connectionManager.sendMessage(agentId, message);
@@ -39,7 +40,7 @@ public class StreamCoordinator {
         StreamInfo info = new StreamInfo();
         info.setChannelId(channelId);
         info.setAgentId(agentId);
-        info.setStatus("STREAMING");
+        info.setStatus("PENDING");
         info.setRtmpUrl(rtmpUrl);
         info.setStreamKey(streamKey);
         info.setPlayUrls(buildPlayUrls(rtmpUrl, streamKey));
