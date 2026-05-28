@@ -24,10 +24,12 @@ public class CameraApplication {
     @Bean
     public WebSocketConnectionManager webSocketConnectionManager(
             StandardWebSocketClient client,
+            ReconnectController reconnectController,
             StreamMessageHandler messageHandler,
             RegistrationService registrationService,
             StatusReporter statusReporter) {
 
+        client.setReconnectCallback(reconnectController);
         client.onMessage(messageHandler::handleMessage);
         client.connect();
         registrationService.register();

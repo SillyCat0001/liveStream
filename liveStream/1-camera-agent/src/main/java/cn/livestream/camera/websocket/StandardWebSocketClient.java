@@ -97,10 +97,10 @@ public class StandardWebSocketClient implements WebSocketClient {
                 Thread.sleep(delay);
                 int attempts = reconnectState.getRetryCount();
                 if (attempts < maxAttempts) {
-                    log.info("Reconnect attempt {}/{}", attempts - 1, maxAttempts);
+                    log.info("Reconnect attempt {}/{}", attempts, maxAttempts);
                     connect();
                 } else {
-                    log.error("Reconnect attempts exhausted ({}), stopping stream", attempts);
+                    log.warn("Reconnect attempts exhausted ({}), stopping stream", attempts);
                     reconnectState.setReconnecting(false);
                     reconnectState.setStreamStoppedByReconnect(true);
                     if (reconnectCallback != null) {
