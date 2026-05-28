@@ -22,6 +22,7 @@ public class CameraConfig {
         private String websocketUrl = "ws://localhost:8080/ws";
         private int reconnectInterval = 5000;
         private int statusReportInterval = 5000;
+        private int maxReconnectAttempts = 10;
 
         public String getWebsocketUrl() { return websocketUrl; }
         public void setWebsocketUrl(String url) { this.websocketUrl = url; }
@@ -29,6 +30,8 @@ public class CameraConfig {
         public void setReconnectInterval(int interval) { this.reconnectInterval = interval; }
         public int getStatusReportInterval() { return statusReportInterval; }
         public void setStatusReportInterval(int interval) { this.statusReportInterval = interval; }
+        public int getMaxReconnectAttempts() { return maxReconnectAttempts; }
+        public void setMaxReconnectAttempts(int n) { this.maxReconnectAttempts = n; }
     }
 
     // getters and setters
