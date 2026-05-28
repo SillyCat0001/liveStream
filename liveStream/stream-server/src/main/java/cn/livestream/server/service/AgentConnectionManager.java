@@ -10,13 +10,18 @@ import java.util.concurrent.ConcurrentHashMap;
 @Component
 public class AgentConnectionManager {
     private final Map<String, WebSocketSession> agentSessions = new ConcurrentHashMap<>();
+    private final Map<String, String> sessionToAgent = new ConcurrentHashMap<>();
 
     public void register(String agentId, WebSocketSession session) {
         agentSessions.put(agentId, session);
+        sessionToAgent.put(session.getId(), agentId);
     }
 
     public void unregister(String agentId) {
-        agentSessions.remove(agentId);
+        WebSocketSession session = agentSessions.remove(agentId);
+        if (session != null) {
+            sessionToAgent.remove(session.getId());
+        }
     }
 
     public WebSocketSession getSession(String agentId) {
@@ -34,5 +39,9 @@ public class AgentConnectionManager {
             throw new IOException("Agent not connected: " + agentId);
         }
         session.sendMessage(new org.springframework.web.socket.TextMessage(message));
+    }
+
+    public String getAgentIdBySession(String sessionId) {
+        return sessionToAgent.get(sessionId);
     }
 }
