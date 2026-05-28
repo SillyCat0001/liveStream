@@ -12,7 +12,6 @@ import org.springframework.web.socket.client.WebSocketConnectionManager;
 import org.springframework.web.socket.client.standard.StandardWebSocketClient;
 
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
 @Component
@@ -21,13 +20,18 @@ public class StandardWebSocketClient implements WebSocketClient {
 
     private final CameraConfig config;
     private final AtomicBoolean connected = new AtomicBoolean(false);
-    private final AtomicInteger reconnectAttempts = new AtomicInteger(0);
     private WebSocketConnectionManager connectionManager;
     private WebSocketSession session;
     private Consumer<String> messageHandler;
+    private ReconnectCallback reconnectCallback;
+    private ReconnectState reconnectState = new ReconnectState();
 
     public StandardWebSocketClient(CameraConfig config) {
         this.config = config;
+    }
+
+    public void setReconnectCallback(ReconnectCallback callback) {
+        this.reconnectCallback = callback;
     }
 
     @Override
@@ -40,7 +44,11 @@ public class StandardWebSocketClient implements WebSocketClient {
             public void afterConnectionEstablished(WebSocketSession s) {
                 session = s;
                 connected.set(true);
-                reconnectAttempts.set(0);
+                reconnectState.setReconnecting(false);
+                reconnectState.resetRetry();
+                if (reconnectCallback != null) {
+                    reconnectCallback.onReconnectSuccess();
+                }
                 log.info("WebSocket connected: {}", s.getId());
             }
 
@@ -61,7 +69,11 @@ public class StandardWebSocketClient implements WebSocketClient {
             public void afterConnectionClosed(WebSocketSession s, CloseStatus status) {
                 connected.set(false);
                 log.info("WebSocket closed: {}", status);
-                scheduleReconnect();
+                if (!reconnectState.isReconnecting()) {
+                    reconnectState.setReconnecting(true);
+                    reconnectState.incrementRetry();
+                    doReconnect();
+                }
             }
 
             @Override
@@ -76,18 +88,24 @@ public class StandardWebSocketClient implements WebSocketClient {
         connectionManager.start();
     }
 
-    private void scheduleReconnect() {
-        if (connected.get()) return;
-
-        int attempts = reconnectAttempts.incrementAndGet();
-        int delay = Math.min(1000 * (int) Math.pow(2, attempts - 1), 30000);
-        log.info("Scheduling reconnect attempt {} in {}ms", attempts, delay);
+    private void doReconnect() {
+        int maxAttempts = config.getServer().getMaxReconnectAttempts();
+        int delay = 5000; // 固定5秒
 
         new Thread(() -> {
             try {
                 Thread.sleep(delay);
-                if (!connected.get()) {
+                int attempts = reconnectState.getRetryCount();
+                if (attempts < maxAttempts) {
+                    log.info("Reconnect attempt {}/{}", attempts - 1, maxAttempts);
                     connect();
+                } else {
+                    log.error("Reconnect attempts exhausted ({}), stopping stream", attempts);
+                    reconnectState.setReconnecting(false);
+                    reconnectState.setStreamStoppedByReconnect(true);
+                    if (reconnectCallback != null) {
+                        reconnectCallback.onReconnectFailed(attempts);
+                    }
                 }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
