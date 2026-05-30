@@ -15,18 +15,26 @@ import java.util.concurrent.ConcurrentHashMap;
 public class FrontendWebSocketServer extends TextWebSocketHandler {
     private static final Logger log = LoggerFactory.getLogger(FrontendWebSocketServer.class);
     private final Map<String, WebSocketSession> sessions = new ConcurrentHashMap<>();
+    private final com.fasterxml.jackson.databind.ObjectMapper objectMapper =
+        new com.fasterxml.jackson.databind.ObjectMapper();
 
     public void sendStreamStopped(String agentId, String reason) {
-        String json = String.format(
-            "{\"type\":\"STREAM_STOPPED\",\"agentId\":\"%s\",\"reason\":\"%s\"}",
-            agentId, reason);
-        sessions.values().forEach(session -> {
-            try {
-                session.sendMessage(new TextMessage(json));
-            } catch (Exception e) {
-                log.warn("Failed to send STREAM_STOPPED to session {}: {}", session.getId(), e.getMessage());
-            }
-        });
+        try {
+            var node = objectMapper.createObjectNode();
+            node.put("type", "STREAM_STOPPED");
+            node.put("agentId", agentId);
+            node.put("reason", reason);
+            String json = objectMapper.writeValueAsString(node);
+            sessions.values().forEach(session -> {
+                try {
+                    session.sendMessage(new TextMessage(json));
+                } catch (Exception e) {
+                    log.warn("Failed to send STREAM_STOPPED to session {}: {}", session.getId(), e.getMessage());
+                }
+            });
+        } catch (Exception e) {
+            log.error("Failed to construct STREAM_STOPPED message", e);
+        }
     }
 
     @Override

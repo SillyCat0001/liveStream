@@ -254,6 +254,7 @@ class LiveStreamApp {
         this.cameraList = new CameraListManager((cam) => this.onCameraSelect(cam));
         this.heartbeatManager = null;
         this.frontendWs = null;
+        this.statsInterval = null;
         this.initElements();
         this.bindEvents();
         this.connectFrontendWebSocket();
@@ -363,6 +364,10 @@ class LiveStreamApp {
         this.placeholder.style.display = 'flex';
         this.updateState(PlayerState.IDLE);
         this.stopHeartbeat();
+        if (this.statsInterval) {
+            clearInterval(this.statsInterval);
+            this.statsInterval = null;
+        }
         if (agentId) {
             fetch(`${SERVER_URL}/api/stream/stop?agentId=${agentId}`, { method: 'DELETE' })
                 .catch(err => console.error('Failed to stop stream:', err));
@@ -448,7 +453,8 @@ class LiveStreamApp {
     }
 
     updateStats() {
-        setInterval(() => {
+        if (this.statsInterval) clearInterval(this.statsInterval);
+        this.statsInterval = setInterval(() => {
             document.getElementById('videoBitrate').textContent = '2000';
             document.getElementById('fps').textContent = '30';
             document.getElementById('latency').textContent = '2000';
