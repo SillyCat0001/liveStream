@@ -4,25 +4,36 @@ import cn.livestream.server.model.stream.StreamInfo;
 import cn.livestream.server.model.ws.CommandResponse;
 import cn.livestream.server.model.ws.StartStreamCommand;
 import cn.livestream.server.model.ws.StopStreamCommand;
+import cn.livestream.server.websocket.FrontendWebSocketServer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 
 @Service
 public class StreamCoordinator {
     private static final Logger log = LoggerFactory.getLogger(StreamCoordinator.class);
+    private static final String HEARTBEAT_KEY_PREFIX = "STREAM:HEARTBEAT:";
+    private static final long HEARTBEAT_TTL_SECONDS = 30;
 
     private final AgentConnectionManager connectionManager;
+    private final StringRedisTemplate redisTemplate;
+    private final FrontendWebSocketServer frontendWebSocketServer;
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final Map<String, StreamInfo> activeStreams = new ConcurrentHashMap<>();
 
-    public StreamCoordinator(AgentConnectionManager connectionManager) {
+    public StreamCoordinator(AgentConnectionManager connectionManager,
+                              StringRedisTemplate redisTemplate,
+                              FrontendWebSocketServer frontendWebSocketServer) {
         this.connectionManager = connectionManager;
+        this.redisTemplate = redisTemplate;
+        this.frontendWebSocketServer = frontendWebSocketServer;
     }
 
     public StreamInfo startStream(String agentId, String rtmpUrl, String streamKey) throws Exception {
@@ -46,11 +57,15 @@ public class StreamCoordinator {
         info.setPlayUrls(buildPlayUrls(rtmpUrl, streamKey));
 
         activeStreams.put(agentId, info);
+        renewHeartbeat(agentId);
         log.info("Start stream command sent to agent: {}", agentId);
         return info;
     }
 
     public void stopStream(String agentId) throws Exception {
+        String heartbeatKey = HEARTBEAT_KEY_PREFIX + agentId;
+        redisTemplate.delete(heartbeatKey);
+
         StopStreamCommand cmd = new StopStreamCommand();
         cmd.setType("STOP_STREAM");
 
@@ -68,6 +83,20 @@ public class StreamCoordinator {
 
     public StreamInfo getStreamInfo(String agentId) {
         return activeStreams.get(agentId);
+    }
+
+    public void renewHeartbeat(String agentId) {
+        String key = HEARTBEAT_KEY_PREFIX + agentId;
+        redisTemplate.opsForValue().set(key, agentId, HEARTBEAT_TTL_SECONDS, TimeUnit.SECONDS);
+    }
+
+    public void onHeartbeatExpired(String agentId) {
+        try {
+            stopStream(agentId);
+            frontendWebSocketServer.sendStreamStopped(agentId, "HEARTBEAT_TIMEOUT");
+        } catch (Exception e) {
+            log.error("Failed to handle heartbeat expiry for agent: {}", agentId, e);
+        }
     }
 
     private Map<String, String> buildPlayUrls(String rtmpUrl, String streamKey) {
