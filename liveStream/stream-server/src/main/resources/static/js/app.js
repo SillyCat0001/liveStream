@@ -292,10 +292,8 @@ class LiveStreamApp {
     }
 
     onCameraSelect(cam) {
-        const streamKey = cam.agentId;
-        const protocol = this.protocolSelect.value;
-        const url = this.buildStreamUrl(protocol, streamKey);
-        this.streamUrlInput.value = url || `rtmp://localhost/live/stream-${streamKey}`;
+        // 只设置 activeId，不填充 streamUrl（由 play() 从后端 playUrls 获取）
+        this.streamUrlInput.value = '';
     }
 
     buildStreamUrl(protocol, streamKey) {
