@@ -7,7 +7,7 @@ const PlayerState = {
     ERROR: 'ERROR'
 };
 
-const SERVER_URL = 'http://localhost:8080';
+const SERVER_URL = '';
 
 class CameraListManager {
     constructor(onSelect) {
@@ -366,6 +366,9 @@ class LiveStreamApp {
     }
 
     startHeartbeat(agentId) {
+        if (this.heartbeatManager) {
+            this.heartbeatManager.stop();
+        }
         this.heartbeatManager = new HeartbeatManager(agentId, () => {
             this.lastActivityTime = Date.now();
         });
