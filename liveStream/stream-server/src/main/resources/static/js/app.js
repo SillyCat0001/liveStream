@@ -296,12 +296,6 @@ class LiveStreamApp {
         this.streamUrlInput.value = '';
     }
 
-    buildStreamUrl(protocol, streamKey) {
-        if (protocol === 'hls') return `http://localhost:8081/hls/${streamKey}.m3u8`;
-        if (protocol === 'httpflv') return `http://localhost:8081/flv/${streamKey}.flv`;
-        return `http://localhost:8081/hls/${streamKey}.m3u8`;
-    }
-
     async play() {
         const agentId = this.cameraList.activeId;
         if (!agentId) {
@@ -319,6 +313,12 @@ class LiveStreamApp {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ agentId })
             });
+            if (!resp.ok) {
+                const errText = await resp.text();
+                alert('推流启动失败: HTTP ' + resp.status);
+                this.updateState(PlayerState.IDLE);
+                return;
+            }
             const data = await resp.json();
             if (!data.success) {
                 alert('推流启动失败: ' + data.message);
