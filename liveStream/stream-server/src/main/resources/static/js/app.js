@@ -7,7 +7,7 @@ const PlayerState = {
     ERROR: 'ERROR'
 };
 
-const SERVER_URL = '';
+const SERVER_URL = 'http://localhost:8080';
 
 class CameraListManager {
     constructor(onSelect) {
@@ -212,14 +212,51 @@ class WebRTCProtocol {
     }
 }
 
+class HeartbeatManager {
+    constructor(agentId, onActivity) {
+        this.agentId = agentId;
+        this.onActivity = onActivity;
+        this.interval = null;
+        this.lastActivityTime = Date.now();
+    }
+
+    start() {
+        this.onActivity();
+        this.interval = setInterval(() => this.tick(), 10000);
+    }
+
+    stop() {
+        if (this.interval) {
+            clearInterval(this.interval);
+            this.interval = null;
+        }
+    }
+
+    tick() {
+        const idle = Date.now() - this.lastActivityTime > 3 * 60 * 1000;
+        if (!idle) {
+            fetch(`${SERVER_URL}/api/stream/heartbeat?agentId=${this.agentId}`, {
+                method: 'PUT'
+            }).catch(err => console.error('Heartbeat failed:', err));
+        }
+    }
+
+    recordActivity() {
+        this.lastActivityTime = Date.now();
+    }
+}
+
 class LiveStreamApp {
     constructor() {
         this.selector = new ProtocolSelector();
         this.currentProtocol = null;
         this.state = PlayerState.IDLE;
         this.cameraList = new CameraListManager((cam) => this.onCameraSelect(cam));
+        this.heartbeatManager = null;
+        this.frontendWs = null;
         this.initElements();
         this.bindEvents();
+        this.connectFrontendWebSocket();
     }
 
     initElements() {
@@ -237,6 +274,16 @@ class LiveStreamApp {
         this.playBtn.addEventListener('click', () => this.play());
         this.stopBtn.addEventListener('click', () => this.stop());
         this.refreshBtn.addEventListener('click', () => this.cameraList.refresh());
+        this.video.addEventListener('pause', () => {
+            if (window.app && window.app.heartbeatManager) {
+                window.app.heartbeatManager.recordActivity();
+            }
+        });
+        this.video.addEventListener('play', () => {
+            if (window.app && window.app.heartbeatManager) {
+                window.app.heartbeatManager.recordActivity();
+            }
+        });
     }
 
     onCameraSelect(cam) {
@@ -259,31 +306,109 @@ class LiveStreamApp {
             return;
         }
 
-        const protocol = this.protocolSelect.value;
-        const config = { url };
+        const agentId = this.cameraList.activeId;
+        if (!agentId) {
+            alert('请选择摄像头');
+            return;
+        }
 
-        this.currentProtocol = this.selector.select(protocol, config);
-        this.currentProtocol.initialize(config);
+        // 步骤1：POST /api/stream/start
         this.updateState(PlayerState.CONNECTING);
-        this.placeholder.style.display = 'none';
+        this.statusEl.textContent = '推流启动中...';
 
         try {
-            await this.currentProtocol.play();
+            const resp = await fetch(`${SERVER_URL}/api/stream/start`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ agentId })
+            });
+            const data = await resp.json();
+            if (!data.success) {
+                alert('推流启动失败: ' + data.message);
+                this.updateState(PlayerState.IDLE);
+                return;
+            }
+            // 步骤2：收到成功响应后开始播放
+            const streamData = data.data;
+            const playUrl = streamData.playUrls.hls || streamData.playUrls.rtmp;
+            this.streamUrlInput.value = playUrl;
+
+            const protocol = this.protocolSelect.value;
+            const config = { url: playUrl };
+            this.currentProtocol = this.selector.select(protocol, config);
+            this.currentProtocol.initialize(config);
             this.updateState(PlayerState.PLAYING);
+            this.placeholder.style.display = 'none';
+
+            await this.currentProtocol.play();
             this.updateStats();
+            this.startHeartbeat(agentId);
         } catch (err) {
             console.error('Playback error:', err);
             this.updateState(PlayerState.ERROR);
             this.placeholder.style.display = 'flex';
+            alert('播放失败: ' + err.message);
         }
     }
 
     stop() {
+        const agentId = this.cameraList.activeId;
         if (this.currentProtocol) this.currentProtocol.stop();
         this.video.src = '';
         this.video.srcObject = null;
         this.placeholder.style.display = 'flex';
         this.updateState(PlayerState.IDLE);
+        this.stopHeartbeat();
+        if (agentId) {
+            fetch(`${SERVER_URL}/api/stream/stop?agentId=${agentId}`, { method: 'DELETE' })
+                .catch(err => console.error('Failed to stop stream:', err));
+        }
+    }
+
+    startHeartbeat(agentId) {
+        this.heartbeatManager = new HeartbeatManager(agentId, () => {
+            this.lastActivityTime = Date.now();
+        });
+        this.heartbeatManager.start();
+    }
+
+    stopHeartbeat() {
+        if (this.heartbeatManager) {
+            this.heartbeatManager.stop();
+            this.heartbeatManager = null;
+        }
+    }
+
+    connectFrontendWebSocket() {
+        const wsUrl = SERVER_URL ? `ws://${SERVER_URL.replace('http://', '')}/ws/frontend` : 'ws://localhost:8080/ws/frontend';
+        const ws = new WebSocket(wsUrl);
+        const self = this;
+        ws.onmessage = (event) => {
+            try {
+                const msg = JSON.parse(event.data);
+                if (msg.type === 'STREAM_STOPPED') {
+                    self.handleStreamStopped(msg.agentId, msg.reason);
+                }
+            } catch (e) {}
+        };
+        ws.onclose = () => {
+            setTimeout(() => self.connectFrontendWebSocket(), 3000);
+        };
+        this.frontendWs = ws;
+    }
+
+    handleStreamStopped(agentId, reason) {
+        if (agentId !== this.cameraList.activeId) return;
+        if (this.currentProtocol) this.currentProtocol.stop();
+        this.video.src = '';
+        this.video.srcObject = null;
+        this.placeholder.style.display = 'flex';
+        this.updateState(PlayerState.IDLE);
+        this.stopHeartbeat();
+        const msg = reason === 'HEARTBEAT_TIMEOUT'
+            ? '推流已停止（离开页面或暂停超时）'
+            : '推流已停止';
+        alert(msg);
     }
 
     updateState(state) {
@@ -293,7 +418,7 @@ class LiveStreamApp {
 
         const statusMap = {
             [PlayerState.IDLE]: { text: '未连接', class: 'disconnected' },
-            [PlayerState.CONNECTING]: { text: '连接中...', class: 'disconnected' },
+            [PlayerState.CONNECTING]: { text: '推流启动中...', class: 'disconnected' },
             [PlayerState.BUFFERING]: { text: '缓冲中...', class: 'disconnected' },
             [PlayerState.PLAYING]: { text: '播放中', class: 'connected' },
             [PlayerState.ERROR]: { text: '错误', class: 'disconnected' }
