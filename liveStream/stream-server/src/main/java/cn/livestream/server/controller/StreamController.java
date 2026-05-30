@@ -7,20 +7,28 @@ import cn.livestream.server.service.AgentRegistry;
 import cn.livestream.server.service.StreamCoordinator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 @RestController
 @RequestMapping("/api/stream")
 public class StreamController {
     private static final Logger log = LoggerFactory.getLogger(StreamController.class);
+    private static final String HEARTBEAT_KEY_PREFIX = "STREAM:HEARTBEAT:";
+    private static final long HEARTBEAT_TTL_SECONDS = 30;
 
     private final StreamCoordinator streamCoordinator;
     private final AgentRegistry registry;
+    private final StringRedisTemplate redisTemplate;
 
-    public StreamController(StreamCoordinator streamCoordinator, AgentRegistry registry) {
+    public StreamController(StreamCoordinator streamCoordinator, AgentRegistry registry, StringRedisTemplate redisTemplate) {
         this.streamCoordinator = streamCoordinator;
         this.registry = registry;
+        this.redisTemplate = redisTemplate;
     }
 
     @PostMapping("/start")
@@ -80,5 +88,19 @@ public class StreamController {
             return ResponseEntity.notFound().build();
         }
         return ResponseEntity.ok(info);
+    }
+
+    @PutMapping("/heartbeat")
+    public ResponseEntity<Map<String, Boolean>> heartbeat(@RequestParam String agentId) {
+        try {
+            String key = HEARTBEAT_KEY_PREFIX + agentId;
+            redisTemplate.opsForValue().set(key, agentId, HEARTBEAT_TTL_SECONDS, TimeUnit.SECONDS);
+            Map<String, Boolean> resp = Map.of("success", true);
+            return ResponseEntity.ok(resp);
+        } catch (Exception e) {
+            log.error("Failed to renew heartbeat for agent: {}", agentId, e);
+            Map<String, Boolean> resp = Map.of("success", false);
+            return ResponseEntity.status(500).body(resp);
+        }
     }
 }
