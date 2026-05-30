@@ -339,6 +339,12 @@ class LiveStreamApp {
             }
             this.streamUrlInput.value = playUrl || '';
 
+            if (!playUrl) {
+                alert('当前协议 "' + protocol + '" 暂无可用播放地址，请选择其他协议');
+                this.updateState(PlayerState.IDLE);
+                return;
+            }
+
             const config = { url: playUrl };
             this.currentProtocol = this.selector.select(protocol, config);
             this.currentProtocol.initialize(config);
