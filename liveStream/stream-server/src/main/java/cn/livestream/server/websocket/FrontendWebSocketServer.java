@@ -1,5 +1,7 @@
 package cn.livestream.server.websocket;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
@@ -11,6 +13,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @Component
 public class FrontendWebSocketServer extends TextWebSocketHandler {
+    private static final Logger log = LoggerFactory.getLogger(FrontendWebSocketServer.class);
     private final Map<String, WebSocketSession> sessions = new ConcurrentHashMap<>();
 
     public void sendStreamStopped(String agentId, String reason) {
@@ -21,7 +24,7 @@ public class FrontendWebSocketServer extends TextWebSocketHandler {
             try {
                 session.sendMessage(new TextMessage(json));
             } catch (Exception e) {
-                // ignore
+                log.warn("Failed to send STREAM_STOPPED to session {}: {}", session.getId(), e.getMessage());
             }
         });
     }
@@ -38,6 +41,12 @@ public class FrontendWebSocketServer extends TextWebSocketHandler {
 
     @Override
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
+        sessions.remove(session.getId());
+    }
+
+    @Override
+    public void handleTransportError(WebSocketSession session, Throwable exception) {
+        log.warn("Transport error for frontend session {}: {}", session.getId(), exception.getMessage());
         sessions.remove(session.getId());
     }
 }
