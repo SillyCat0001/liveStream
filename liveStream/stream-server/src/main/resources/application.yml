@@ -1,11 +1,12 @@
 server:
-  port: 8090
+  port: 8080
 
 spring:
   data:
     redis:
       host: localhost
       port: 6379
+      timeout: 5000
 
 stream-server:
   heartbeat-timeout: 60
