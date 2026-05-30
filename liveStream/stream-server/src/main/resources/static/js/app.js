@@ -303,12 +303,6 @@ class LiveStreamApp {
     }
 
     async play() {
-        const url = this.streamUrlInput.value.trim();
-        if (!url) {
-            alert('请选择摄像头或输入流地址');
-            return;
-        }
-
         const agentId = this.cameraList.activeId;
         if (!agentId) {
             alert('请选择摄像头');
@@ -333,10 +327,18 @@ class LiveStreamApp {
             }
             // 步骤2：收到成功响应后开始播放
             const streamData = data.data;
-            const playUrl = streamData.playUrls.hls || streamData.playUrls.rtmp;
-            this.streamUrlInput.value = playUrl;
-
             const protocol = this.protocolSelect.value;
+            const playUrls = streamData.playUrls || {};
+            let playUrl;
+            if (protocol === 'hls') {
+                playUrl = playUrls.hls;
+            } else if (protocol === 'httpflv') {
+                playUrl = playUrls.httpflv;
+            } else {
+                playUrl = playUrls.hls || playUrls.rtmp;
+            }
+            this.streamUrlInput.value = playUrl || '';
+
             const config = { url: playUrl };
             this.currentProtocol = this.selector.select(protocol, config);
             this.currentProtocol.initialize(config);
