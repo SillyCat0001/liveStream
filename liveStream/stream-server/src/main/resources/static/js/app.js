@@ -264,15 +264,19 @@ class LiveStreamApp {
         this.streamUrlInput = document.getElementById('streamUrl');
         this.protocolSelect = document.getElementById('protocolSelect');
         this.playBtn = document.getElementById('playBtn');
-        this.stopBtn = document.getElementById('stopBtn');
         this.statusEl = document.getElementById('connectionStatus');
         this.refreshBtn = document.getElementById('refreshBtn');
         this.placeholder = document.getElementById('videoPlaceholder');
     }
 
     bindEvents() {
-        this.playBtn.addEventListener('click', () => this.play());
-        this.stopBtn.addEventListener('click', () => this.stop());
+        this.playBtn.addEventListener('click', () => {
+            if (this.state === PlayerState.PLAYING) {
+                this.stop();
+            } else {
+                this.play();
+            }
+        });
         this.refreshBtn.addEventListener('click', () => this.cameraList.refresh());
         this.video.addEventListener('pause', () => {
             if (window.app && window.app.heartbeatManager) {
@@ -416,8 +420,19 @@ class LiveStreamApp {
 
     updateState(state) {
         this.state = state;
-        this.playBtn.disabled = state === PlayerState.PLAYING || state === PlayerState.CONNECTING;
-        this.stopBtn.disabled = state === PlayerState.IDLE;
+
+        const playBtn = this.playBtn;
+
+        const stateConfig = {
+            [PlayerState.IDLE]: { text: '播放', disabled: false },
+            [PlayerState.CONNECTING]: { text: '播放中...', disabled: true },
+            [PlayerState.PLAYING]: { text: '停止推流', disabled: false },
+            [PlayerState.ERROR]: { text: '播放', disabled: false }
+        };
+
+        const config = stateConfig[state] || stateConfig[PlayerState.IDLE];
+        playBtn.textContent = config.text;
+        playBtn.disabled = config.disabled;
 
         const statusMap = {
             [PlayerState.IDLE]: { text: '未连接', class: 'disconnected' },
@@ -427,7 +442,7 @@ class LiveStreamApp {
             [PlayerState.ERROR]: { text: '错误', class: 'disconnected' }
         };
 
-        const { text, class: cls } = statusMap[state];
+        const { text, class: cls } = statusMap[state] || statusMap[PlayerState.IDLE];
         this.statusEl.textContent = text;
         this.statusEl.className = cls;
     }
