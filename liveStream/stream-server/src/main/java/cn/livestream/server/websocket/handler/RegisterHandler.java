@@ -30,7 +30,7 @@ public class RegisterHandler {
 
         AgentInfo info = new AgentInfo();
         info.setAgentId(agentId);
-        info.setDeviceName(msg.getDeviceInfo() != null ? msg.getDeviceInfo().toString() : null);
+        info.setDeviceName(msg.getDeviceInfo());
         info.setCapabilities(msg.getCapabilities());
         info.setStatus(AgentStatus.ONLINE);
 

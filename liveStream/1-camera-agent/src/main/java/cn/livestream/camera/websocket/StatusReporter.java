@@ -43,7 +43,7 @@ public class StatusReporter {
 
         StatusReport report = new StatusReport();
         report.setType("STATUS_REPORT");
-        report.setDeviceId(config.getDeviceId());
+        report.setAgentId(config.getSn());
 
         if (pusher.isRunning()) {
             report.setStatus("STREAMING");

@@ -1,6 +1,7 @@
 package cn.livestream.camera.websocket;
 
 import cn.livestream.camera.config.CameraConfig;
+import cn.livestream.camera.model.Capabilities;
 import cn.livestream.camera.websocket.model.RegisterMessage;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
@@ -23,11 +24,11 @@ public class RegistrationService {
     public void register() {
         RegisterMessage message = new RegisterMessage();
         message.setType("REGISTER");
-        message.setDeviceId(config.getDeviceId());
-        message.setName(config.getDeviceName());
+        message.setAgentId(config.getSn());
+        message.setDeviceInfo(config.getDeviceName());
         message.setProtocolVersion("1.0");
 
-        RegisterMessage.Capabilities capabilities = new RegisterMessage.Capabilities();
+        Capabilities capabilities = new Capabilities();
         capabilities.setProtocols(new String[]{"RTMP"});
         capabilities.setMaxResolution(config.getWidth() + "x" + config.getHeight());
         capabilities.setMaxFps(config.getFps());
@@ -37,7 +38,7 @@ public class RegistrationService {
         try {
             String json = objectMapper.writeValueAsString(message);
             webSocketClient.sendMessage(json);
-            log.info("Device registered: {}", config.getDeviceId());
+            log.info("Device registered: {}", config.getSn());
         } catch (Exception e) {
             log.error("Failed to register device", e);
         }

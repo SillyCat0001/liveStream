@@ -1,9 +1,11 @@
 package cn.livestream.camera.health;
 
+import cn.livestream.camera.config.CameraConfig;
 import cn.livestream.camera.ffmpeg.FFmpegWrapper;
+import cn.livestream.camera.pusher.StreamPusher;
+import cn.livestream.camera.websocket.StatusReporter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -11,34 +13,59 @@ import org.springframework.stereotype.Component;
 public class HealthChecker {
     private static final Logger log = LoggerFactory.getLogger(HealthChecker.class);
 
-    @Autowired
-    private FFmpegWrapper ffmpegWrapper;
+    private final FFmpegWrapper ffmpegWrapper;
+    private final StreamPusher pusher;
+    private final StatusReporter statusReporter;
+    private final CameraConfig config;
 
-    private int reconnectCount = 0;
-    private static final int RECONNECT_THRESHOLD = 10;
+    private int unhealthyCount = 0;
+    private static final int UNHEALTHY_THRESHOLD = 3;
 
-    @Scheduled(fixedDelay = 30000)
+    public HealthChecker(FFmpegWrapper ffmpegWrapper, StreamPusher pusher,
+                         StatusReporter statusReporter, CameraConfig config) {
+        this.ffmpegWrapper = ffmpegWrapper;
+        this.pusher = pusher;
+        this.statusReporter = statusReporter;
+        this.config = config;
+    }
+
+    @Scheduled(fixedDelay = 5000)
     public void checkHealth() {
-        boolean healthy = ffmpegWrapper.isRunning();
+        boolean expectedRunning = pusher.isRunning();
+        boolean actuallyRunning = ffmpegWrapper.isRunning();
 
-        if (!healthy) {
-            reconnectCount++;
-            log.warn("Health check failed, reconnect attempt: {}", reconnectCount);
+        if (expectedRunning && !actuallyRunning) {
+            unhealthyCount++;
+            log.warn("FFmpeg process dead while streaming expected, unhealthy count: {}/{}",
+                    unhealthyCount, UNHEALTHY_THRESHOLD);
 
-            if (reconnectCount > RECONNECT_THRESHOLD) {
-                log.error("Reconnect threshold exceeded, manual intervention required");
+            if (unhealthyCount >= UNHEALTHY_THRESHOLD) {
+                log.error("Unhealthy threshold exceeded, attempting to restart stream");
+                pusher.stop();
+                unhealthyCount = 0;
+                try {
+                    pusher.start(config);
+                    log.info("Stream restarted successfully");
+                } catch (Exception e) {
+                    log.error("Failed to restart stream", e);
+                    statusReporter.reportStatus();
+                }
             }
         } else {
-            reconnectCount = 0;
+            unhealthyCount = 0;
             log.debug("Health check OK");
         }
+    }
+
+    public void reset() {
+        unhealthyCount = 0;
     }
 
     public boolean isHealthy() {
         return ffmpegWrapper.isRunning();
     }
 
-    public int getReconnectCount() {
-        return reconnectCount;
+    public int getUnhealthyCount() {
+        return unhealthyCount;
     }
 }

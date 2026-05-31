@@ -1,12 +1,18 @@
 server:
-  port: 8080
+  port: 8081
 
 camera:
-  rtmp-url: rtmp://localhost/live
-  stream-key: test-stream
+  rtmp-url: rtmp://localhost/live/SXT20260531222
+  server:
+    websocket-url: ws://localhost:8080/ws/agent
+    reconnect-interval: 5000
+    status-report-interval: 5000
+    max-reconnect-attempts: 10
+  stream-key: stream
   width: 1920
   height: 1080
   fps: 30
   video-bitrate: 2000
   audio-bitrate: 128
   codec: h264
+  sn: "SXT20260531222"

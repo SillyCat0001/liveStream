@@ -5,9 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>直播监控系统</title>
     <link rel="stylesheet" href="css/player.css">
-    <!-- HLS.js -->
     <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.7/dist/hls.min.js"></script>
-    <!-- FLV.js -->
     <script src="https://cdn.jsdelivr.net/npm/flv.js@1.6.2/dist/flv.min.js"></script>
 </head>
 <body>
@@ -19,41 +17,55 @@
             </div>
         </header>
 
-        <main>
-            <div class="video-container">
-                <video id="videoPlayer" controls playsinline></video>
-            </div>
+        <div class="main-layout">
+            <aside class="camera-panel">
+                <div class="panel-header">
+                    <h3>在线摄像头</h3>
+                    <button id="refreshBtn" class="btn small">刷新</button>
+                </div>
+                <div id="cameraList" class="camera-list">
+                    <div class="empty-hint">点击"刷新"加载...</div>
+                </div>
+            </aside>
 
-            <div class="controls">
-                <div class="control-group">
-                    <label>流地址:</label>
-                    <input type="text" id="streamUrl" placeholder="输入 HLS/HTTP-FLV 地址">
+            <section class="player-area">
+                <div class="video-container">
+                    <video id="videoPlayer" controls playsinline></video>
+                    <div id="videoPlaceholder" class="video-placeholder">
+                        <span>选择左侧摄像头开始观看</span>
+                    </div>
                 </div>
-                <div class="control-group">
-                    <label>协议:</label>
-                    <select id="protocolSelect">
-                        <option value="auto">自动选择</option>
-                        <option value="hls">HLS</option>
-                        <option value="httpflv">HTTP-FLV</option>
-                        <option value="webrtc">WebRTC</option>
-                    </select>
-                </div>
-                <div class="control-buttons">
-                    <button id="playBtn" class="btn primary">播放</button>
-                    <button id="stopBtn" class="btn" disabled>停止</button>
-                </div>
-            </div>
 
-            <div class="stats">
-                <h3>播放统计</h3>
-                <div id="statsContent">
-                    <p>码率: <span id="videoBitrate">-</span> kbps</p>
-                    <p>帧率: <span id="fps">-</span> fps</p>
-                    <p>延迟: <span id="latency">-</span> ms</p>
-                    <p>缓冲: <span id="buffer">-</span> ms</p>
+                <div class="controls">
+                    <div class="control-group">
+                        <label>流地址:</label>
+                        <input type="text" id="streamUrl" placeholder="自动填充或手动输入">
+                    </div>
+                    <div class="control-group">
+                        <label>协议:</label>
+                        <select id="protocolSelect">
+                            <option value="auto">自动选择</option>
+                            <option value="hls">HLS</option>
+                            <option value="httpflv">HTTP-FLV</option>
+                        </select>
+                    </div>
+                    <div class="control-buttons">
+                        <button id="playBtn" class="btn primary">播放</button>
+                        <button id="stopBtn" class="btn" disabled>停止</button>
+                    </div>
                 </div>
-            </div>
-        </main>
+
+                <div class="stats">
+                    <h3>播放统计</h3>
+                    <div id="statsContent">
+                        <p>码率: <span id="videoBitrate">-</span> kbps</p>
+                        <p>帧率: <span id="fps">-</span> fps</p>
+                        <p>延迟: <span id="latency">-</span> ms</p>
+                        <p>缓冲: <span id="buffer">-</span> ms</p>
+                    </div>
+                </div>
+            </section>
+        </div>
     </div>
 
     <script src="js/app.js"></script>

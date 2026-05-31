@@ -18,8 +18,7 @@ public class HealthController {
     public Map<String, Object> health() {
         Map<String, Object> result = new HashMap<>();
         result.put("healthy", healthChecker.isHealthy());
-        result.put("reconnectCount", healthChecker.getReconnectCount());
-        result.put("ffmpegRunning", healthChecker.isHealthy());
+        result.put("unhealthyCount", healthChecker.getUnhealthyCount());
         return result;
     }
 }

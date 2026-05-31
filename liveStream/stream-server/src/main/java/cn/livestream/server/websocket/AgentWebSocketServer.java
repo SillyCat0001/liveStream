@@ -5,6 +5,7 @@ import cn.livestream.server.service.AgentRegistry;
 import cn.livestream.server.websocket.handler.RegisterHandler;
 import cn.livestream.server.websocket.handler.HeartbeatHandler;
 import cn.livestream.server.websocket.handler.CommandResponseHandler;
+import cn.livestream.server.websocket.handler.StatusReportHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -22,18 +23,21 @@ public class AgentWebSocketServer extends TextWebSocketHandler {
     private final RegisterHandler registerHandler;
     private final HeartbeatHandler heartbeatHandler;
     private final CommandResponseHandler commandResponseHandler;
+    private final StatusReportHandler statusReportHandler;
 
     public AgentWebSocketServer(
             AgentConnectionManager connectionManager,
             AgentRegistry registry,
             RegisterHandler registerHandler,
             HeartbeatHandler heartbeatHandler,
-            CommandResponseHandler commandResponseHandler) {
+            CommandResponseHandler commandResponseHandler,
+            StatusReportHandler statusReportHandler) {
         this.connectionManager = connectionManager;
         this.registry = registry;
         this.registerHandler = registerHandler;
         this.heartbeatHandler = heartbeatHandler;
         this.commandResponseHandler = commandResponseHandler;
+        this.statusReportHandler = statusReportHandler;
     }
 
     @Override
@@ -44,6 +48,7 @@ public class AgentWebSocketServer extends TextWebSocketHandler {
     @Override
     protected void handleTextMessage(WebSocketSession session, TextMessage message) {
         try {
+            System.out.println(message.getPayload());
             String payload = message.getPayload();
             var objectMapper = new com.fasterxml.jackson.databind.ObjectMapper();
             var node = objectMapper.readTree(payload);
@@ -58,6 +63,7 @@ public class AgentWebSocketServer extends TextWebSocketHandler {
                 case "REGISTER" -> registerHandler.handle(session, payload);
                 case "HEARTBEAT" -> heartbeatHandler.handle(session, payload);
                 case "COMMAND_RESPONSE" -> commandResponseHandler.handle(session, payload);
+                case "STATUS_REPORT" -> statusReportHandler.handle(session, payload);
                 default -> log.warn("Unknown message type: {}", type);
             }
         } catch (Exception e) {

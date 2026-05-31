@@ -7,6 +7,69 @@ const PlayerState = {
     ERROR: 'ERROR'
 };
 
+const SERVER_URL = 'http://localhost:8080';
+
+class CameraListManager {
+    constructor(onSelect) {
+        this.onSelect = onSelect;
+        this.cameras = [];
+        this.activeId = null;
+    }
+
+    async refresh() {
+        try {
+            const resp = await fetch(`${SERVER_URL}/api/agents`);
+            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+            const data = await resp.json();
+            this.cameras = data.agents || [];
+            this.render();
+        } catch (err) {
+            console.error('Failed to fetch cameras:', err);
+            const list = document.getElementById('cameraList');
+            list.innerHTML = `<div class="empty-hint">加载失败: ${err.message}</div>`;
+        }
+    }
+
+    render() {
+        const list = document.getElementById('cameraList');
+        if (this.cameras.length === 0) {
+            list.innerHTML = '<div class="empty-hint">暂无在线摄像头</div>';
+            return;
+        }
+
+        list.innerHTML = this.cameras.map(cam => {
+            const activeClass = cam.agentId === this.activeId ? ' active' : '';
+            const statusClass = (cam.status || '').toLowerCase();
+            return `
+                <div class="camera-item${activeClass}" data-agent-id="${cam.agentId}">
+                    <div class="cam-name">${this.escape(cam.deviceName || cam.agentId)}</div>
+                    <div class="cam-id">${this.escape(cam.agentId)}</div>
+                    <span class="cam-status ${statusClass}">${this.escape(cam.status || 'UNKNOWN')}</span>
+                </div>`;
+        }).join('');
+
+        list.querySelectorAll('.camera-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const agentId = item.dataset.agentId;
+                this.setActive(agentId);
+                const cam = this.cameras.find(c => c.agentId === agentId);
+                if (cam && this.onSelect) this.onSelect(cam);
+            });
+        });
+    }
+
+    setActive(agentId) {
+        this.activeId = agentId;
+        this.render();
+    }
+
+    escape(str) {
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+}
+
 class ProtocolSelector {
     constructor() {
         this.protocols = {
@@ -29,9 +92,7 @@ class HLSProtocol {
         this.hls = null;
     }
 
-    getName() {
-        return 'HLS';
-    }
+    getName() { return 'HLS'; }
 
     initialize(config) {
         this.config = config;
@@ -77,9 +138,7 @@ class HTTPFLVProtocol {
         this.player = null;
     }
 
-    getName() {
-        return 'HTTP-FLV';
-    }
+    getName() { return 'HTTP-FLV'; }
 
     initialize(config) {
         this.config = config;
@@ -113,9 +172,7 @@ class HTTPFLVProtocol {
 }
 
 class WebRTCProtocol {
-    getName() {
-        return 'WebRTC';
-    }
+    getName() { return 'WebRTC'; }
 
     initialize(config) {
         this.config = config;
@@ -126,19 +183,15 @@ class WebRTCProtocol {
             const pc = new RTCPeerConnection({
                 iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
             });
-
             pc.ontrack = (event) => {
                 const video = document.getElementById('videoPlayer');
                 video.srcObject = event.streams[0];
                 video.play();
             };
-
-            // Demo: get local media
             const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
             const video = document.getElementById('videoPlayer');
             video.srcObject = stream;
             await video.play();
-
             this.pc = pc;
         } catch (error) {
             console.error('WebRTC play error:', error);
@@ -164,6 +217,7 @@ class LiveStreamApp {
         this.selector = new ProtocolSelector();
         this.currentProtocol = null;
         this.state = PlayerState.IDLE;
+        this.cameraList = new CameraListManager((cam) => this.onCameraSelect(cam));
         this.initElements();
         this.bindEvents();
     }
@@ -175,17 +229,33 @@ class LiveStreamApp {
         this.playBtn = document.getElementById('playBtn');
         this.stopBtn = document.getElementById('stopBtn');
         this.statusEl = document.getElementById('connectionStatus');
+        this.refreshBtn = document.getElementById('refreshBtn');
+        this.placeholder = document.getElementById('videoPlaceholder');
     }
 
     bindEvents() {
         this.playBtn.addEventListener('click', () => this.play());
         this.stopBtn.addEventListener('click', () => this.stop());
+        this.refreshBtn.addEventListener('click', () => this.cameraList.refresh());
+    }
+
+    onCameraSelect(cam) {
+        const streamKey = cam.agentId;
+        const protocol = this.protocolSelect.value;
+        const url = this.buildStreamUrl(protocol, streamKey);
+        this.streamUrlInput.value = url || `rtmp://localhost/live/stream-${streamKey}`;
+    }
+
+    buildStreamUrl(protocol, streamKey) {
+        if (protocol === 'hls') return `http://localhost:8081/hls/${streamKey}.m3u8`;
+        if (protocol === 'httpflv') return `http://localhost:8081/flv/${streamKey}.flv`;
+        return `http://localhost:8081/hls/${streamKey}.m3u8`;
     }
 
     async play() {
         const url = this.streamUrlInput.value.trim();
         if (!url) {
-            alert('请输入流地址');
+            alert('请选择摄像头或输入流地址');
             return;
         }
 
@@ -195,6 +265,7 @@ class LiveStreamApp {
         this.currentProtocol = this.selector.select(protocol, config);
         this.currentProtocol.initialize(config);
         this.updateState(PlayerState.CONNECTING);
+        this.placeholder.style.display = 'none';
 
         try {
             await this.currentProtocol.play();
@@ -203,18 +274,21 @@ class LiveStreamApp {
         } catch (err) {
             console.error('Playback error:', err);
             this.updateState(PlayerState.ERROR);
+            this.placeholder.style.display = 'flex';
         }
     }
 
     stop() {
         if (this.currentProtocol) this.currentProtocol.stop();
         this.video.src = '';
+        this.video.srcObject = null;
+        this.placeholder.style.display = 'flex';
         this.updateState(PlayerState.IDLE);
     }
 
     updateState(state) {
         this.state = state;
-        this.playBtn.disabled = state === PlayerState.PLAYING;
+        this.playBtn.disabled = state === PlayerState.PLAYING || state === PlayerState.CONNECTING;
         this.stopBtn.disabled = state === PlayerState.IDLE;
 
         const statusMap = {

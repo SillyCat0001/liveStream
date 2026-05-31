@@ -176,7 +176,41 @@ spring:
 
 ---
 
-## 6. 前端变更
+## 6. Web-Player 集成到 Stream-Server
+
+将 `4-web-player` 的静态文件集成到 `stream-server` 中，作为 Spring Boot 静态资源提供服务。
+
+### 6.1 目录结构
+
+```
+stream-server/src/main/resources/
+├── static/
+│   ├── index.html
+│   ├── css/player.css
+│   └── js/app.js
+```
+
+### 6.2 Web 配置
+
+Spring Boot 默认静态资源路径包含 `classpath:/static/`，将 `4-web-player/` 下的文件复制到 `stream-server/src/main/resources/static/` 即可。
+
+### 6.3 访问地址
+
+```
+http://localhost:8080/
+```
+
+### 6.4 接口地址调整
+
+`app.js` 中的 `SERVER_URL` 需改为相对路径或空字符串（因为同源）：
+
+```javascript
+const SERVER_URL = '';  // 同源，无需指定
+```
+
+---
+
+## 7. 前端变更
 
 ### 6.1 app.js - LiveStreamApp
 

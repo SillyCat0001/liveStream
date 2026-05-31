@@ -46,8 +46,7 @@ public class StreamController {
         try {
             StreamInfo info = streamCoordinator.startStream(
                 agentId,
-                "rtmp://localhost/live",
-                "stream-" + agentId
+                "rtmp://localhost:1935/livestream", agentId
             );
             StartStreamResponse resp = new StartStreamResponse();
             resp.setSuccess(true);
@@ -94,7 +93,11 @@ public class StreamController {
     public ResponseEntity<Map<String, Boolean>> heartbeat(@RequestParam String agentId) {
         try {
             String key = HEARTBEAT_KEY_PREFIX + agentId;
-            redisTemplate.opsForValue().set(key, agentId, HEARTBEAT_TTL_SECONDS, TimeUnit.SECONDS);
+            if(redisTemplate.opsForValue().get(key) == null) {
+                redisTemplate.opsForValue().set(key, agentId, HEARTBEAT_TTL_SECONDS, TimeUnit.SECONDS);
+            }else {
+                redisTemplate.opsForValue().getAndExpire(key, HEARTBEAT_TTL_SECONDS, TimeUnit.SECONDS);
+            }
             Map<String, Boolean> resp = Map.of("success", true);
             return ResponseEntity.ok(resp);
         } catch (Exception e) {

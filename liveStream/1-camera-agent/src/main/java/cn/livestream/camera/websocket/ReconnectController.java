@@ -10,14 +10,20 @@ public class ReconnectController implements ReconnectCallback {
     private static final Logger log = LoggerFactory.getLogger(ReconnectController.class);
 
     private final StreamPusher pusher;
+    private final RegistrationService registrationService;
+    private final StatusReporter statusReporter;
 
-    public ReconnectController(StreamPusher pusher) {
+    public ReconnectController(StreamPusher pusher, RegistrationService registrationService,
+                               StatusReporter statusReporter) {
         this.pusher = pusher;
+        this.registrationService = registrationService;
+        this.statusReporter = statusReporter;
     }
 
     @Override
     public void onReconnectFailed(int attempts) {
         log.warn("WebSocket reconnect failed after {} attempts, stopping stream", attempts);
+        statusReporter.stop();
         try {
             pusher.stop();
         } catch (Exception e) {
@@ -27,6 +33,8 @@ public class ReconnectController implements ReconnectCallback {
 
     @Override
     public void onReconnectSuccess() {
-        log.info("WebSocket reconnected successfully");
+        log.info("WebSocket connected, registering device");
+        registrationService.register();
+        statusReporter.start();
     }
 }

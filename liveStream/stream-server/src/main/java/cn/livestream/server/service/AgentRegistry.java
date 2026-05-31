@@ -25,7 +25,9 @@ public class AgentRegistry {
         String agentId = info.getAgentId();
         redisTemplate.opsForHash().put(String.format(AGENT_INFO_KEY, agentId), "agentId", agentId);
         redisTemplate.opsForHash().put(String.format(AGENT_INFO_KEY, agentId), "deviceName", info.getDeviceName());
-        redisTemplate.opsForHash().put(String.format(AGENT_INFO_KEY, agentId), "capabilities", info.getCapabilities());
+        if (info.getCapabilities() != null) {
+            redisTemplate.opsForHash().put(String.format(AGENT_INFO_KEY, agentId), "capabilities", info.getCapabilities());
+        }
         redisTemplate.opsForValue().set(String.format(AGENT_STATUS_KEY, agentId), AgentStatus.ONLINE.name());
         updateHeartbeat(agentId);
         localCache.put(agentId, info);
@@ -74,5 +76,15 @@ public class AgentRegistry {
 
     public boolean isAgentOnline(String agentId) {
         return getStatus(agentId) == AgentStatus.ONLINE;
+    }
+
+    public java.util.List<AgentInfo> getOnlineAgents() {
+        java.util.List<AgentInfo> online = new java.util.ArrayList<>();
+        for (Map.Entry<String, AgentInfo> entry : localCache.entrySet()) {
+            if (isAgentOnline(entry.getKey())) {
+                online.add(entry.getValue());
+            }
+        }
+        return online;
     }
 }

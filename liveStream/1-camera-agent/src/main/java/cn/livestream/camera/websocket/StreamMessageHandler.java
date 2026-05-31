@@ -1,6 +1,7 @@
 package cn.livestream.camera.websocket;
 
 import cn.livestream.camera.config.CameraConfig;
+import cn.livestream.camera.health.HealthChecker;
 import cn.livestream.camera.pusher.RTMPPusher;
 import cn.livestream.camera.websocket.model.CommandResponse;
 import cn.livestream.camera.websocket.model.StartStreamCommand;
@@ -17,12 +18,15 @@ public class StreamMessageHandler {
     private final CameraConfig config;
     private final RTMPPusher pusher;
     private final WebSocketClient webSocketClient;
+    private final HealthChecker healthChecker;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    public StreamMessageHandler(CameraConfig config, RTMPPusher pusher, WebSocketClient webSocketClient) {
+    public StreamMessageHandler(CameraConfig config, RTMPPusher pusher, WebSocketClient webSocketClient,
+                                HealthChecker healthChecker) {
         this.config = config;
         this.pusher = pusher;
         this.webSocketClient = webSocketClient;
+        this.healthChecker = healthChecker;
     }
 
     public void handleMessage(String message) {
@@ -58,6 +62,7 @@ public class StreamMessageHandler {
             }
 
             pusher.start(config);
+            healthChecker.reset();
             sendResponse("START_STREAM", true, "Stream started");
 
             log.info("Stream started: {}/{}", command.getRtmpUrl(), command.getStreamKey());
@@ -70,6 +75,7 @@ public class StreamMessageHandler {
     private void handleStopStream() {
         try {
             pusher.stop();
+            healthChecker.reset();
             sendResponse("STOP_STREAM", true, "Stream stopped");
             log.info("Stream stopped");
         } catch (Exception e) {

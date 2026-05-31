@@ -16,23 +16,10 @@ public class CameraConfig {
     private int videoBitrate = 2000;
     private int audioBitrate = 128;
     private String codec = "h264";
-    private ServerConfig server = new ServerConfig();
+    private String sn = "";
 
-    public static class ServerConfig {
-        private String websocketUrl = "ws://localhost:8080/ws";
-        private int reconnectInterval = 5000;
-        private int statusReportInterval = 5000;
-        private int maxReconnectAttempts = 10;
-
-        public String getWebsocketUrl() { return websocketUrl; }
-        public void setWebsocketUrl(String url) { this.websocketUrl = url; }
-        public int getReconnectInterval() { return reconnectInterval; }
-        public void setReconnectInterval(int interval) { this.reconnectInterval = interval; }
-        public int getStatusReportInterval() { return statusReportInterval; }
-        public void setStatusReportInterval(int interval) { this.statusReportInterval = interval; }
-        public int getMaxReconnectAttempts() { return maxReconnectAttempts; }
-        public void setMaxReconnectAttempts(int n) { this.maxReconnectAttempts = n; }
-    }
+    public String getSn() { return sn; }
+    public void setSn(String sn) { this.sn = sn; }
 
     // getters and setters
     public String getDeviceId() { return deviceId; }
@@ -55,6 +42,4 @@ public class CameraConfig {
     public void setAudioBitrate(int bitrate) { this.audioBitrate = bitrate; }
     public String getCodec() { return codec; }
     public void setCodec(String codec) { this.codec = codec; }
-    public ServerConfig getServer() { return server; }
-    public void setServer(ServerConfig server) { this.server = server; }
 }

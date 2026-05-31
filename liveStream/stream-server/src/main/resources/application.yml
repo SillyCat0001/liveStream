@@ -10,3 +10,7 @@ spring:
 
 stream-server:
   heartbeat-timeout: 60
+
+stream:
+  rtmp-url: rtmp://localhost/livestream
+  proxy-http-port: 8082

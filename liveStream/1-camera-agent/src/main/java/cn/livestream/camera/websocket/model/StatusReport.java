@@ -1,7 +1,7 @@
 package cn.livestream.camera.websocket.model;
 
 public class StatusReport extends WebSocketMessage {
-    private String deviceId;
+    private String agentId;
     private String status;
     private StreamStats stats = new StreamStats();
 
@@ -22,8 +22,8 @@ public class StatusReport extends WebSocketMessage {
         public void setLatencyMs(long ms) { this.latencyMs = ms; }
     }
 
-    public String getDeviceId() { return deviceId; }
-    public void setDeviceId(String id) { this.deviceId = id; }
+    public String getAgentId() { return agentId; }
+    public void setAgentId(String id) { this.agentId = id; }
     public String getStatus() { return status; }
     public void setStatus(String s) { this.status = s; }
     public StreamStats getStats() { return stats; }

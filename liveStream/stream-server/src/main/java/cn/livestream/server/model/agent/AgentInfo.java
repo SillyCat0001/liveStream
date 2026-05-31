@@ -1,10 +1,12 @@
 package cn.livestream.server.model.agent;
 
+import cn.livestream.server.model.Capabilities;
+
 public class AgentInfo {
     private String agentId;
     private String deviceName;
     private AgentStatus status;
-    private String capabilities;
+    private Capabilities capabilities;
 
     public String getAgentId() {
         return agentId;
@@ -30,11 +32,11 @@ public class AgentInfo {
         this.status = status;
     }
 
-    public String getCapabilities() {
+    public Capabilities getCapabilities() {
         return capabilities;
     }
 
-    public void setCapabilities(String capabilities) {
+    public void setCapabilities(Capabilities capabilities) {
         this.capabilities = capabilities;
     }
 }
