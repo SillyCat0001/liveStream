@@ -1,0 +1,60 @@
+version: '3.8'
+
+networks:
+  srs-cluster:
+    driver: bridge
+
+services:
+  # SRS Origin 节点（纯推流，仅 Docker 网络内可访问）
+  srs-origin:
+    image: ossrs/srs:5
+    container_name: srs-origin
+    hostname: srs-origin
+    networks:
+      - srs-cluster
+    volumes:
+      - ./srs-origin.conf:/usr/local/srs/conf/srs.conf:Z
+      - srs-origin-data:/usr/local/srs/objs/nginx/html
+    environment:
+      - SRS_VHOST=__defaultVhost__
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/localhost/1985; echo -e \"GET /api/v1/versions HTTP/1.0\\\\r\\\\n\\\\r\\\\n\" >&3; cat <&3"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # SRS Proxy 节点（对外服务，暴露到宿主机）
+  srs-proxy:
+    image: ossrs/srs:5
+    container_name: srs-proxy
+    hostname: srs-proxy
+    networks:
+      - srs-cluster
+    ports:
+      - "1935:1935"   # RTMP
+      - "1986:1986"   # API
+      - "8082:8081"   # HTTP-FLV
+      - "8000:8000/udp" # WebRTC
+    volumes:
+      - ./srs-proxy.conf:/usr/local/srs/conf/srs.conf:Z
+      - srs-proxy-data:/usr/local/srs/objs/nginx/html
+    command: ./objs/srs -c conf/srs.conf
+    environment:
+      - SRS_VHOST=__defaultVhost__
+      - SRS_ORIGIN_HOST=srs-origin
+    depends_on:
+      srs-origin:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/localhost/1985; echo -e \"GET /api/v1/versions HTTP/1.0\\\\r\\\\n\\\\r\\\\n\" >&3; cat <&3"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  srs-origin-data:
+  srs-proxy-data:

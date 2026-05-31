@@ -150,7 +150,13 @@ class HTTPFLVProtocol {
             this.player = flvjs.createPlayer({
                 type: 'flv',
                 url: this.config.url,
-                isLive: true
+                isLive: true,
+                latency: 0,
+                enableWorker: true,
+                fixAudioTimestampGap: false,
+                autoCleanupSourceBuffer: true,
+                autoCleanupMaxBackwardDuration: 1,
+                autoCleanupMinBackwardDuration: 0.5
             });
             this.player.attachMediaElement(video);
             this.player.load();
@@ -176,6 +182,11 @@ class HTTPFLVProtocol {
 }
 
 class WebRTCProtocol {
+    constructor() {
+        this.pc = null;
+        this.stream = null;
+    }
+
     getName() { return 'WebRTC'; }
 
     initialize(config) {
@@ -183,24 +194,78 @@ class WebRTCProtocol {
     }
 
     async play() {
-        try {
-            const pc = new RTCPeerConnection({
-                iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
-            });
-            pc.ontrack = (event) => {
-                const video = document.getElementById('videoPlayer');
-                video.srcObject = event.streams[0];
-                video.play();
-            };
-            const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        const webrtcUrl = this.config.url;
+
+        const pc = new RTCPeerConnection({
+            iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+        });
+        this.pc = pc;
+
+        pc.addTransceiver('video', { direction: 'recvonly' });
+        pc.addTransceiver('audio', { direction: 'recvonly' });
+
+        pc.ontrack = (event) => {
             const video = document.getElementById('videoPlayer');
-            video.srcObject = stream;
-            await video.play();
-            this.pc = pc;
-        } catch (error) {
-            console.error('WebRTC play error:', error);
-            throw error;
-        }
+            video.srcObject = event.streams[0];
+            video.play().catch(e => console.warn('play error:', e));
+        };
+
+        pc.oniceconnectionstatechange = () => {
+            console.log('ICE connection state:', pc.iceConnectionState);
+        };
+
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+
+        // Wait for ICE gathering to complete (Vanilla ICE for WHEP)
+        await new Promise((resolve) => {
+            if (pc.iceGatheringState === 'complete') {
+                resolve();
+            } else {
+                pc.onicegatheringstatechange = () => {
+                    if (pc.iceGatheringState === 'complete') {
+                        resolve();
+                    }
+                };
+            }
+        });
+
+        const sdp = pc.localDescription.sdp;
+        console.log('=== WHEP Debug ===');
+        console.log('URL:', webrtcUrl);
+        console.log('SDP (' + (sdp?.length || 0) + ' bytes):\n' + (sdp || 'NULL'));
+        console.log('=================');
+
+        const result = await new Promise((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', webrtcUrl, true);
+            xhr.setRequestHeader('Content-Type', 'application/sdp');
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4) {
+                    console.log('XHR status:', xhr.status, 'statusText:', xhr.statusText);
+                    if (xhr.status === 201 || xhr.status === 200) {
+                        resolve(xhr.responseText);
+                    } else {
+                        reject(new Error('XHR failed: ' + xhr.status + ' ' + xhr.statusText + ' ' + xhr.responseText));
+                    }
+                }
+            };
+            xhr.onerror = function(err) {
+                console.error('XHR error:', err);
+                reject(new Error('XHR error: ' + err.message));
+            };
+            xhr.send(sdp);
+        });
+
+        console.log('XHR SUCCESS, answer SDP length:', result.length);
+
+        const answerSdp = result;
+        await pc.setRemoteDescription(new RTCSessionDescription({
+            type: 'answer',
+            sdp: answerSdp
+        }));
+
+        this.pc = pc;
     }
 
     stop() {
@@ -339,8 +404,10 @@ class LiveStreamApp {
                 playUrl = playUrls.hls;
             } else if (protocol === 'httpflv') {
                 playUrl = playUrls.httpflv;
+            } else if (protocol === 'webrtc') {
+                playUrl = playUrls.webrtc;
             } else {
-                playUrl = playUrls.hls || playUrls.rtmp;
+                playUrl = playUrls.httpflv || playUrls.rtmp;
             }
             this.streamUrlInput.value = playUrl || '';
 
@@ -350,7 +417,7 @@ class LiveStreamApp {
                 return;
             }
 
-            const config = { url: playUrl };
+            const config = { url: playUrl, streamKey: agentId };
             this.currentProtocol = this.selector.select(protocol, config);
             this.currentProtocol.initialize(config);
             this.updateState(PlayerState.PLAYING);

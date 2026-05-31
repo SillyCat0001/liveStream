@@ -111,6 +111,7 @@ public class StreamCoordinator {
         urls.put("rtmp", rtmpUrl + "/" + streamKey);
         urls.put("hls", "http://localhost:" + proxyHttpPort + "/livestream/" + streamKey + ".m3u8");
         urls.put("httpflv", "http://localhost:" + proxyHttpPort + "/livestream/" + streamKey + ".flv");
+        urls.put("webrtc", "http://localhost:1986/rtc/v1/whep/?app=livestream&stream=" + streamKey);
         return urls;
     }
 }
