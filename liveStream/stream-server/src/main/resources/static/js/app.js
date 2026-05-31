@@ -81,9 +81,9 @@ class ProtocolSelector {
 
     select(protocol, config) {
         if (protocol === 'auto') {
-            return this.protocols.hls;
+            return this.protocols.httpflv;
         }
-        return this.protocols[protocol] || this.protocols.hls;
+        return this.protocols[protocol] || this.protocols.httpflv;
     }
 }
 
@@ -162,10 +162,14 @@ class HTTPFLVProtocol {
 
     stop() {
         if (this.player) {
-            this.player.pause();
-            this.player.unload();
-            this.player.detachMediaElement();
-            this.player.dispose();
+            try {
+                this.player.pause();
+                this.player.unload();
+                this.player.detachMediaElement();
+                this.player.dispose();
+            } catch (e) {
+                console.warn('FLV player cleanup error:', e);
+            }
             this.player = null;
         }
     }
@@ -255,6 +259,7 @@ class LiveStreamApp {
         this.heartbeatManager = null;
         this.frontendWs = null;
         this.statsInterval = null;
+        this.playingAgentId = null;
         this.initElements();
         this.bindEvents();
         this.connectFrontendWebSocket();
@@ -351,6 +356,7 @@ class LiveStreamApp {
             this.updateState(PlayerState.PLAYING);
             this.placeholder.style.display = 'none';
 
+            this.playingAgentId = agentId;
             await this.currentProtocol.play();
             this.updateStats();
             this.startHeartbeat(agentId);
@@ -363,7 +369,8 @@ class LiveStreamApp {
     }
 
     stop() {
-        const agentId = this.cameraList.activeId;
+        const agentId = this.playingAgentId || this.cameraList.activeId;
+        if (!agentId) return;
         if (this.currentProtocol) this.currentProtocol.stop();
         this.video.src = '';
         this.video.srcObject = null;
@@ -374,10 +381,10 @@ class LiveStreamApp {
             clearInterval(this.statsInterval);
             this.statsInterval = null;
         }
-        if (agentId) {
-            fetch(`${SERVER_URL}/api/stream/stop?agentId=${agentId}`, { method: 'DELETE' })
-                .catch(err => console.error('Failed to stop stream:', err));
-        }
+        fetch(`${SERVER_URL}/api/stream/stop?agentId=${agentId}`, { method: 'DELETE' })
+            .catch(err => console.error('Failed to stop stream:', err));
+        this.currentProtocol = null;
+        this.playingAgentId = null;
     }
 
     startHeartbeat(agentId) {
@@ -471,4 +478,5 @@ class LiveStreamApp {
 
 document.addEventListener('DOMContentLoaded', () => {
     window.app = new LiveStreamApp();
+    window.app.cameraList.refresh();
 });

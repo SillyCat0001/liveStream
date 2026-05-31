@@ -8,6 +8,7 @@ import cn.livestream.server.websocket.FrontendWebSocketServer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
@@ -21,6 +22,12 @@ public class StreamCoordinator {
     private static final Logger log = LoggerFactory.getLogger(StreamCoordinator.class);
     private static final String HEARTBEAT_KEY_PREFIX = "STREAM:HEARTBEAT:";
     private static final long HEARTBEAT_TTL_SECONDS = 30;
+
+    @Value("${stream.rtmp-url}")
+    private String rtmpUrl;
+
+    @Value("${stream.proxy-http-port}")
+    private int proxyHttpPort;
 
     private final AgentConnectionManager connectionManager;
     private final StringRedisTemplate redisTemplate;
@@ -54,7 +61,7 @@ public class StreamCoordinator {
         info.setStatus("PENDING");
         info.setRtmpUrl(rtmpUrl);
         info.setStreamKey(streamKey);
-        info.setPlayUrls(buildPlayUrls(rtmpUrl, streamKey));
+        info.setPlayUrls(buildPlayUrls(streamKey));
 
         activeStreams.put(agentId, info);
         renewHeartbeat(agentId);
@@ -99,11 +106,11 @@ public class StreamCoordinator {
         }
     }
 
-    private Map<String, String> buildPlayUrls(String rtmpUrl, String streamKey) {
+    private Map<String, String> buildPlayUrls(String streamKey) {
         Map<String, String> urls = new ConcurrentHashMap<>();
         urls.put("rtmp", rtmpUrl + "/" + streamKey);
-        urls.put("hls", "http://localhost:8080/live/" + streamKey + ".m3u8");
-        urls.put("httpflv", "http://localhost:8080/live/" + streamKey + ".flv");
+        urls.put("hls", "http://localhost:" + proxyHttpPort + "/livestream/" + streamKey + ".m3u8");
+        urls.put("httpflv", "http://localhost:" + proxyHttpPort + "/livestream/" + streamKey + ".flv");
         return urls;
     }
 }
